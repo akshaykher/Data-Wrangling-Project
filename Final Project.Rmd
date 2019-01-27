@@ -1,0 +1,832 @@
+---
+title: "Analyzing Impact of Mailers and In-Store Display"
+subtitle: '-- For a Major Retailer in US'
+author: "Akshay Kher"
+date: "December 5, 2018"
+output: html_document
+---
+
+***
+
+<center>
+![](image/retail_image.jpg)
+</center>
+
+## {.tabset .tabset-fade}
+
+### 1. Introduction
+
+#### 1.1 <span style="color:blue">Research Question</span>
+This project aims to **explore the effect on sales, units and visits** due to:
+
+a.	In-store display of a product
+b.	Whether the product was featured in the weekly mailer or not
+
+For years, retailers have been investing in these two strategies to boost their revenues. At the same time, for years, consumers have been influenced by these two strategies without even knowing it. **This project aims to quantify this effect and help both consumers and retailers.**
+
+
+#### 1.2 <span style="color:blue">Data</span>
+The analysis will make use of transactional data and the causal data for a major retailer for a period of 2 years. The transactional data, as the name suggests, records all the transactions for 2500 households. The causal data records the display and mailer information for 68377 products in 115 stores.
+
+#### 1.3 <span style="color:blue">Methodology</span>
+Calculate the effect of in-store display and weekly mailer information on the sales, units and visits between Year 1 and Year 2 for the same:
+
+(a)	Product
+(b)	Store
+(c)	Week ID
+
+Once we have the information for distinct (a), (b) and (c) we can make generalized statements for all 68,377 products in 115 stores for the last 102 weeks. Using these results which are obtained from the sampled data, we will make use of central limit theorem and confidence intervals to make inferences about the population.
+
+#### 1.4 <span style="color:blue">Practical Usage</span>
+This project aims to quantify the effect of strategies discussed in 1.1 and help:
+
+(a)	Retailers optimize their in-store display
+(b)	Consumers optimize their spending on the right products with minimum influence
+
+***
+
+### 2. Packages Required	
+
+*Load Files*
+
+*This package allows you to read and write data at blazing fast speed*
+```{r warning=FALSE,message=FALSE}
+library(data.table)
+```
+
+*This package is a grammar of data manipulation, providing a consistent set of verbs that help you solve the most common data manipulation challenges like mutating, selecting, filtering, summarizing and arranging columns*
+```{r warning=FALSE,message=FALSE}
+library(dplyr)
+```
+
+*This packages provides fast and effecient implementations of common string manipulations*
+```{r warning=FALSE,message=FALSE}
+library(stringr)
+```
+
+*This package is a system for declaratively creating graphics, based on The Grammar of Graphics*
+```{r warning=FALSE,message=FALSE}
+library(ggplot2)
+```
+
+*This package makes it easier to work with dates and times*
+```{r warning=FALSE,message=FALSE}
+library(lubridate)
+```
+
+*This package helps in printing datasets fited to page*
+```{r warning=FALSE,message=FALSE}
+library(printr)
+```
+
+*This package helps in creating tidy data*
+```{r warning=FALSE,message=FALSE}
+library(tidyr)
+```
+
+*This package helps to render data objects in R as HTML tables using the JavaScript library 'DataTables'*
+```{r warning=FALSE,message=FALSE}
+library(DT)
+```
+
+***
+
+
+### 3. Data Preparation	{.tabset .tabset-fade .tabset-pills}
+
+#### 3.1 Source
+This dataset contains household level transactions of over two years from a group of 2,500 households who are frequent shoppers at a retailer. It contains all of each household's purchases, not just those from a limited number of categories. For certain households, demographic information as well as direct marketing contact history are included.
+
+(A)	**hh_demographic (801x8)** - This table contains demographic information for a portion of households. Due to nature of the data, the demographic information is not available for all households.
+(B)	**transaction_data (2595732x12)** - This table contains all products purchased by households within this study. Each line found in this table is essentially the same line that would be found on a store receipt.
+(C)	**campaign_table (7208x3)** - This table lists the campaigns received by each household in the study. Each household received a different set of campaigns.
+(D)	**campaign_desc (30x4)** - This table gives the length of time for which a campaign runs. So, any coupons received as part of a campaign are valid within the dates contained in this table.
+(E)	**product (92353x7)** - This table contains information on each product sold such as type of product, national or private label and a brand identifier.
+(F)	**coupon (124548x3)** - This table lists all the coupons sent to customers as part of a campaign, as well as the products for which each coupon is redeemable. Some coupons are redeemable for multiple products. One example is a coupon for any private label frozen vegetable. There are a large number of products where this coupon could be redeemed.
+(G)	**coupon_redempt (2318x4)** - This table identifies the coupons that each household redeemed.
+(H)	**causal_data (36786524x5)** - This table signifies whether a given product was featured in the weekly mailer or was part of an in-store display (other than regular product placement).
+
+
+Link: https://github.com/akshaykher/Data-Wrangling-Project/blob/master/The_Complete_Journey_guide.pdf
+
+#### 3.2 Data Importing and Cleaning
+
+**<span style="color:blue">Importing All Tables</span>** 
+```{r}
+# names of the data files to import
+names <- c("product", "transaction_data", "causal_data")
+
+# importing all data files at once
+for(i in seq_along(names))
+{
+  df = fread(paste0("data/", names[i], ".csv")) 
+  assign(names[i], df)
+}
+```
+
+**<span style="color:blue">Product Table</span>** 
+```{r}
+datatable(head(product, 100))
+```
+
+```{r}
+# Replacing Empty Strings with NA
+product$department[which(product$department == "")] = NA
+product$commodity_desc[which(product$commodity_desc == "")] = NA
+product$sub_commodity_desc[which(product$sub_commodity_desc == "")] = NA
+product$curr_size_of_product[which(product$curr_size_of_product == "")] = NA
+
+# Converting Some String Variables to Factor Variables
+product <- mutate(product, 
+                  department = factor(department),
+                  brand = factor(brand),
+                  commodity_desc = factor(commodity_desc),
+                  sub_commodity_desc = factor(sub_commodity_desc))
+```
+
+
+**<span style="color:blue">Causal Table</span>** 
+```{r}
+datatable(head(causal_data, 100))
+```
+
+```{r}
+# Converting Some String Variables to Factor Variables
+causal_data <- mutate(causal_data, display = factor(display), mailer = factor(mailer))
+```
+
+**<span style="color:blue">Transaction Table</span>** 
+```{r}
+datatable(head(transaction_data, 100))
+```
+
+```{r}
+
+########## Quantity Variable ##########
+
+# 99% of the quantities are less 10. However there is huge spike in quantity from 99% to 100%. We will need to examine this!
+q1<- c(quantile(transaction_data$quantity, probs = seq(0, 0.9, 0.1)),
+quantile(transaction_data$quantity, probs = seq(0.91, 1, 0.01)))
+
+df1 <- as.data.frame(q1)
+names(df1) <- "quantity"
+datatable(df1)
+```
+
+```{r}
+########## Quantity Variable ##########
+
+# For all quantities greater than 200, the sub_commodity_desc is "GASOLINE-REG UNLEADED". The quantity of gas may be calculated in gallons giving it a high number. 
+transaction_data %>%
+filter(quantity>200) %>%
+select(product_id) %>%
+unique() %>%
+inner_join(select(product, product_id, department, commodity_desc
+                  , sub_commodity_desc), by="product_id") %>%
+select(sub_commodity_desc) %>%
+unique()
+```
+
+```{r}
+########## Quantity Variable ##########
+
+# Flagging Gasoline and Non-Gasoline Transactions
+transaction_data$gasoline_transaction <- 
+  ifelse(transaction_data$product_id %in% 
+           product[product$sub_commodity_desc == "GASOLINE-REG UNLEADED",]
+                $product_id, 1, 0)
+
+# Max Quantity for a Non-Gasoline Transactions is 144. This seems legitimate.
+q2 <- quantile(filter(transaction_data, gasoline_transaction == 0)$quantity, 
+         seq(0, 1, 0.1))
+
+df2 <- as.data.frame(q2)
+names(df2) <- "quantity"
+datatable(df2)
+```
+
+
+
+```{r}
+########## Retail Discount Variable ##########
+
+# As discount can never be negative, we will convert positive discounts to 0
+transaction_data[transaction_data$retail_disc > 0]$retail_disc = 0
+```
+
+#### 3.3 Final Data
+
+**<span style="color:blue">Product Table - First 20 Rows</span>** 
+```{r echo=FALSE}
+datatable(head(product,20))
+```
+
+```{r}
+# Summary of Product Table
+glimpse(product)
+```
+
+**<span style="color:blue">Causal Table</span>** 
+```{r echo=FALSE}
+datatable(head(causal_data))
+```
+
+```{r}
+# Summary of Causal Table
+glimpse(causal_data)
+```
+
+**<span style="color:blue">Transaction Table- First 20 Rows</span>** 
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+datatable(head(transaction_data,20))
+```
+
+```{r}
+# Summary of Transaction Table
+glimpse(transaction_data)
+```
+
+#### 3.4 Summary
+
+**<span style="color:blue">Product Table</span>** 
+```{r}
+# Total unique counts of each variable
+product %>%
+  summarize(tot_products = n(),
+            tot_manufacturer = n_distinct(manufacturer),
+            tot_department = n_distinct(department),
+            tot_brand = n_distinct(brand),
+            tot_commodity_desc = n_distinct(commodity_desc),
+            tot_sub_commodity_desc = n_distinct(sub_commodity_desc))
+```
+
+```{r}
+# Total NAs in each variable
+c1 <- colSums(is.na(product))
+
+df1 <- as.data.frame(c1)
+names(df1) <- "total_NAs"
+df1
+```
+
+**<span style="color:blue">Causal Table</span>** 
+```{r}
+# Total unique counts/min-max of each variable
+causal_data %>%
+  summarize(total_observations = n(),
+            tot_products = n_distinct(product_id),
+            min_week = min(week_no),
+            max_week = max(week_no),
+            tot_display = n_distinct(display),
+            tot_mailer = n_distinct(mailer))
+```
+
+```{r}
+# Total NAs in each variable
+c2 <- colSums(is.na(causal_data))
+
+df2 <- as.data.frame(c2)
+names(df2) <- "total_NAs"
+df2
+```
+
+```{r}
+# Explanation and Total Counts of the Display Variable
+table_display <- table(causal_data$display)
+names(table_display) <- 
+              c("Not on Display", "Store Front", "Store Rear", "Front End Cap",
+               "Mid-Aisle End Cap", "Rear End Cap", "Side-Aisle End Cap",
+               "In-Aisle", "Secondary Location Display", "In-Shelf")
+
+df_display <- as.data.frame(table_display)
+names(df_display) <- c("Display","Count")
+
+df_display %>%
+  arrange(Count) %>%                                # sort by counts
+  mutate(Display = factor(Display,Display)) %>%     # reset factor
+  ggplot(aes(x=Display, y=Count)) +                 # plot 
+  geom_bar(stat="identity") +
+  coord_flip() +
+  scale_y_continuous(labels = scales::comma)
+```
+
+```{r}
+# Explanation and Total Counts of the Mailer Variable
+table_mailer <- table(causal_data$mailer)
+names(table_mailer) <- 
+            c("Not on Ad", "Interior Page Feature", "Interior Page Line Item",
+              "Front Page Feature","Back Page Feature", "Wrap Front Feature", 
+              "Wrap Interior Coupon","Wrap Back Feature", "Interior Page Coupon", 
+              "Free on Interior Page", "Free on Front Page, Back Page or Wrap")
+
+df_mailer <- as.data.frame(table_mailer)
+names(df_mailer) <- c("Mailer","Count")
+
+df_mailer %>%
+  arrange(Count) %>%                                # sort by counts
+  mutate(Mailer = factor(Mailer,Mailer)) %>%        # reset factor
+  ggplot(aes(x=Mailer, y=Count)) +                  # plot 
+  geom_bar(stat="identity") +
+  coord_flip()+
+  scale_y_continuous(labels = scales::comma)
+```
+
+**<span style="color:blue">Transaction Table</span>** 
+```{r}
+# Total unique counts of each variable grouped by Gasoline Transactions
+transaction_data %>%
+  group_by(gasoline_transaction) %>%
+  summarize(total_visits = n_distinct(basket_id),
+  total_observations = n(),
+  total_households = n_distinct(household_key),
+  total_products = n_distinct(product_id),
+  total_stores = n_distinct(store_id))
+```
+
+```{r}
+# Min, Max of each variable grouped by Gasonline Transactions
+transaction_data %>%
+  group_by(gasoline_transaction) %>%
+  summarize(min_quantity = min(quantity),
+  max_quantity = max(quantity),
+  min_sales = min(sales_value),
+  max_sales = max(sales_value),
+  min_day = min(day),
+  max_day = max(day),
+  min_week = min(week_no),
+  max_week = max(week_no))
+```
+
+```{r}
+# Total NAs in each variable
+c3 <-colSums(is.na(transaction_data))
+
+df3 <- as.data.frame(c3)
+names(df3) <- "total_NAs"
+df3
+```
+
+***
+
+### 4. Exploratory Data Analysis {.tabset .tabset-fade .tabset-pills}
+
+#### 4.1 Data Wrangling
+
+First, we'll join **Causal Data** with **Transaction Data** on:
+
+* product_id - which accounts for product level variation
+* store_id - which accounts for store level variation
+* week_no - which accounts for seasonal variation
+
+Second, we'll find the **total sales, units and visits** by aggregating on:
+
+* product_id
+* store_id
+* week_no
+* display
+* mailer
+
+Thus, in the coming analysis, **we'll compare sales, units and visits for same products, for the same stores and in the same week. This will ensure that any differences that we detect can be attributed to display and mailer level changes only. The variation due to product, store and week number will already be accounted for.**
+
+```{r}
+# Joining Causal Data with Transaction Data and then aggregating it.
+mailer_display_transactions <-
+  causal_data %>%
+  inner_join(select(transaction_data,household_key,basket_id,
+                    quantity,sales_value,product_id,store_id,week_no),
+             by = c("product_id","store_id","week_no")) %>% 
+  group_by(store_id,product_id,week_no,display,mailer) %>% 
+  summarize(total_customers = n_distinct(household_key),
+            sum_sales=sum(sales_value),
+            sum_quantity=sum(quantity),
+            sum_visits=n_distinct(basket_id))
+
+datatable(head(mailer_display_transactions,20)) # First 20 Rows
+```
+
+***
+
+Now we'll separate the above dataset into **Year 1 and Year 2** based on the week_no. For the Year 2 dataset we'll recode the week_no's from 54-102 to 1-52.
+
+The purpose of doing this is to compare metrics of Year 1 vs Year 2.
+
+```{r}
+# Year 1 dataset
+mailer_display_transactions_year1 <-
+  mailer_display_transactions %>% 
+  filter(week_no <=54)
+
+# Year 2 dataset
+mailer_display_transactions_year2 <-
+  mailer_display_transactions %>% 
+  filter(week_no >54) %>% 
+  mutate(week_no_modified = week_no-54)
+
+# Recoding the week_no's for Year 2
+mailer_display_transactions_year2$week_no <-
+  mailer_display_transactions_year2$week_no_modified
+
+mailer_display_transactions_year2$week_no_modified = NULL
+```
+
+***
+Now, we'll join Year 1 and Year 2 dataset on:
+
+* product_id
+* store_id
+* week_no
+
+Then, we'll separate the above data into:
+
+* mailer_year1_vs_year2 - This contains all the rows where:
+    + *mailer* changed from **0 to not 0 from Year 1 to Year 2**
+    + *mailer* changed from **not 0 to 0 from Year 1 to Year 2**
+* display_year1_vs_year2 - This contains all the rows where:
+    + *display* changed from **0 to not 0 from Year 1 to Year 2**
+    + *display* changed from **not 0 to 0 from Year 1 to Year 2**
+    
+The purpose of doing this is to quantify the effect of:
+
+* Shifting a product **not on display** to **on-display** from Year 1 to Year 2 and vice-versa
+* Put a product from **not on Ad** to **on-Ad** from Year 1 to Year 2 and vice-versa
+
+```{r}
+# Joining Year 1 and Year 2 datasets
+mailer_display_transactions_year1_vs_year2 <- 
+  mailer_display_transactions_year1 %>% 
+  inner_join(mailer_display_transactions_year2,
+             by=c("product_id","store_id","week_no"),
+             suffix=c("_Yr1","_Yr2")) # as both tables have same colnames
+
+# Mailer Dataset - where there is a difference between Year 1 and Year 2
+mailer_year1_vs_year2 <- 
+  mailer_display_transactions_year1_vs_year2 %>% 
+  filter( (mailer_Yr1==0 & mailer_Yr2 !=0) | (mailer_Yr2==0 & mailer_Yr1 !=0) )
+
+# Display Dataset - where there is a difference between Year 1 and Year 2
+display_year1_vs_year2 <- 
+  mailer_display_transactions_year1_vs_year2 %>% 
+  filter( (display_Yr1==0 & display_Yr2 !=0) | (display_Yr2==0 & display_Yr1 !=0) )
+
+datatable(head(mailer_display_transactions_year1_vs_year2,20)) # First 20 Rows
+```
+
+***
+
+Now that we've already taken into account the product level variation, we'll aggregate the mailer and display datasets by store and week number.
+
+```{r}
+# Aggregating Mailer dataset
+mailer_year1_vs_year2 <-
+  mailer_year1_vs_year2 %>%
+  group_by(store_id,week_no,mailer_Yr1,mailer_Yr2) %>% 
+  summarize(sum_sales_Yr1=sum(sum_sales_Yr1),
+            sum_quantity_Yr1=sum(sum_quantity_Yr1),
+            sum_visits_Yr1=sum(sum_visits_Yr1),
+            sum_sales_Yr2=sum(sum_sales_Yr2),
+            sum_quantity_Yr2=sum(sum_quantity_Yr2),
+            sum_visits_Yr2=sum(sum_visits_Yr2))
+
+# Aggregating Display dataset
+display_year1_vs_year2 <-
+  display_year1_vs_year2 %>%
+  group_by(store_id,week_no,display_Yr1,display_Yr2) %>% 
+  summarize(sum_sales_Yr1=sum(sum_sales_Yr1),
+            sum_quantity_Yr1=sum(sum_quantity_Yr1),
+            sum_visits_Yr1=sum(sum_visits_Yr1),
+            sum_sales_Yr2=sum(sum_sales_Yr2),
+            sum_quantity_Yr2=sum(sum_quantity_Yr2),
+            sum_visits_Yr2=sum(sum_visits_Yr2))
+
+datatable(head(mailer_year1_vs_year2,20)) # First 20 Rows
+```
+
+***
+
+Now, in future analysis, **we want to conduct a hypothesis test to detect any difference in sales, units and visits for a particular store & week between Year 1 and Year 2 due to display/mailer variables.**
+
+The quantities between Year 1 and Year 2 are **paired**, thus we should calculate their difference and **conduct the hypothesis on the average of difference.**
+
+**The diff_of_avg_yr1_vs_yr2 function** does exactly that. It takes the arguments:
+
+* df - display or mailer dataset
+* val_yr1 - mailer or display value in Year 1
+* val_yr2 - mailer or display value in Year 2
+* var_interest - calculate for sales, units or visits or all of them
+* mailer - 1 for mailer dataset, 0 otherwise
+* display - 1 for display dataset, 0 otherwise
+
+Using these arguments the above function calculates the average of difference between the Year 1 and Year 2 **called the Point Estimate. Further, it also calculates the standard deviation and number of observation, both of which will be used to conduct a hypothesis test.**
+
+```{r}
+diff_of_avg_yr1_vs_yr2 <- 
+  function(df = display_year1_vs_year2,
+           val_yr1 = 0,
+           val_yr2 = "A",
+           var_interest = c("diff_sales","diff_quantity","diff_visits"),
+           mailer = 0,
+           display = 1)
+  {
+    if(mailer == 1) # if mailer dataset
+    {
+      calc_diff <-
+        df %>% 
+        # calculate all differences for specified mailer variables
+        mutate(diff_sales = sum_sales_Yr2-sum_sales_Yr1,
+               diff_quantity = sum_quantity_Yr2-sum_quantity_Yr1,
+               diff_visits = sum_visits_Yr2-sum_visits_Yr1) %>% 
+        filter(mailer_Yr1 == val_yr1,mailer_Yr2 == val_yr2)
+    } else if (display == 1)  # if display dataset
+    {
+      calc_diff <-
+        df %>%
+        # calculate all differences for specified display variables
+        mutate(diff_sales = sum_sales_Yr2-sum_sales_Yr1,
+               diff_quantity = sum_quantity_Yr2-sum_quantity_Yr1,
+               diff_visits = sum_visits_Yr2-sum_visits_Yr1) %>% 
+        filter(display_Yr1 == val_yr1,display_Yr2 == val_yr2)
+    } else  # if not a mailer or display dataset
+    {
+      print("Correct Value Not Selected") 
+    }
+    
+    # calculate average of difference for all var_interest specified by user
+    l1 = lapply(calc_diff[,names(calc_diff) %in% var_interest],mean,na.rm=TRUE)
+    
+    # calculate sd of difference for all var_interest specified by user
+    l2 = lapply(calc_diff[,names(calc_diff) %in% var_interest],sd,na.rm=TRUE)
+    
+    # calculate number of observations
+    l3 = list(n_obs=nrow(calc_diff))
+    
+    # append mean, sd and number of observations
+    point_estimate <- append(append(l1,l2),l3)
+    names(point_estimate) <- c("diff_sales","diff_quantity","diff_visits",
+                   "sd_sales","sd_quantity","sd_visits","n_obs")
+    
+    return(point_estimate)
+  }
+
+# Sample Output of Function
+diff_of_avg_yr1_vs_yr2(df = display_year1_vs_year2,
+           val_yr1 = 0,
+           val_yr2 = "A",
+           var_interest = c("diff_sales","diff_quantity","diff_visits"),
+           mailer = 0,
+           display = 1)
+```
+
+***
+
+We have 10 unique mailer categories and 11 unique display categories. If we run **diff_of_avg_yr1_vs_yr2** function on each combination then we'll need to call the function 38 times manually. To avoid this, we'll create a new function called calculate_point_estimates which will do this automatically.
+
+**The calculate_point_estimates function** takes the arguments:
+
+* mailer - 1 for mailer dataset, 0 otherwise
+* display - 1 for display dataset, 0 otherwise
+* df - display or mailer dataset
+
+```{r}
+calculate_point_estimates <- function(mailer=0,display=0,df=mailer_year1_vs_year2)
+{
+  if(display == 1) # if display dataset
+  {
+    names = c("1","2","3","4","5","6","7","9","A")
+  } else if(mailer==1) # if mailer dataset
+  {
+    names = c("A","C","D","F","H","J","L","P","X","Z")
+  }
+  
+  df_point_estimates = data.frame()
+  
+  for(i in 1:length(names)) 
+  {
+    # Yr 1 vs Yr 2 where Yr 1 Variable = 0 and Yr 2 Variable !=0
+    point_estimate <-
+      diff_of_avg_yr1_vs_yr2(df = df,
+                             val_yr1 = 0, # Yr 1 = 0
+                             val_yr2 = names[i],# Yr 2 not 0
+                             var_interest = c("diff_sales","diff_quantity","diff_visits"),
+                             mailer = mailer,
+                             display = display)
+    df_point_estimates=bind_rows(df_point_estimates,point_estimate)
+    df_point_estimates$val_yr1[i] = 0
+    df_point_estimates$val_yr2[i] = names[i]
+  }
+  
+  for(i in 1:length(names)) 
+  {
+    # Yr 1 vs Yr 2 where Yr 1 Variable != 0 and Yr 2 Variable !=0
+    point_estimate <-
+      diff_of_avg_yr1_vs_yr2(df = df, 
+                             val_yr1 = names[i],# Yr 1 not 0
+                             val_yr2 = 0, # Yr = 0
+                             var_interest = c("diff_sales","diff_quantity","diff_visits"),
+                             mailer = mailer,
+                             display = display)
+    df_point_estimates=bind_rows(df_point_estimates,point_estimate)
+    df_point_estimates$val_yr1[i+length(names)] = names[i]
+    df_point_estimates$val_yr2[i+length(names)] = 0
+  }
+  
+  return(na.omit(df_point_estimates))
+}
+```
+
+***
+
+Running the function **calculate_point_estimates** on display and mailer dataset
+
+```{r}
+display_point_estimates <- 
+  calculate_point_estimates(display=1,mailer=0,df=display_year1_vs_year2) %>%
+  select(val_yr1,val_yr2,everything())
+
+mailer_point_estimates <- 
+  calculate_point_estimates(display=0,mailer=1,df=mailer_year1_vs_year2) %>% 
+  select(val_yr1,val_yr2,everything())
+
+datatable(mailer_point_estimates) # mailer_point_estimates dataset
+```
+
+***
+
+Now we will create a function **calc_p_value_conf_int function** which will calculate the final datasets. It takes 1 dataset as an argument and does the following steps:
+
+1. Tidy the dataset so that the columns diff_sales, diff_units, diff_visits, sd_sales, sd_units and sd_visits are gathered into three columns: Variables, diff and sd
+2. Calculate the p-value
+3. Calculate the upper and lower bounds of the confidence interval
+4. Filter all rows with p-value > 5%
+
+```{r}
+calc_p_value_conf_int <- function(df)
+{
+  df1 <-
+    df %>% 
+    select(val_yr1,val_yr2,starts_with("diff"),n_obs) %>% 
+    gather(Variable, diff, c("diff_sales","diff_quantity","diff_visits")) %>% 
+    mutate(Variable = str_replace(Variable,"diff_",""))
+  
+  df2 <-
+    df %>% 
+    select(val_yr1,val_yr2,starts_with("sd")) %>% 
+    gather(Variable, sd, c("sd_sales","sd_quantity","sd_visits")) %>% 
+    mutate(Variable = str_replace(Variable,"sd_",""))
+  
+  df3 <-
+  df1 %>% 
+    inner_join(df2,by = c("val_yr1","val_yr2","Variable")) %>% 
+    
+    # p-value
+    mutate(p_value = pnorm(abs(diff/(sd/sqrt(n_obs))),lower.tail = FALSE)*2) %>%
+    
+    # Lower bound of CI
+    mutate(ci_lower = diff-1.96*(sd/sqrt(n_obs))) %>% 
+    
+    # Upper bound of CI
+    mutate(ci_upper = diff+1.96*(sd/sqrt(n_obs))) %>% 
+    
+    # Keep rows with p-value < 5%
+    filter(p_value <= 0.05)
+  
+  return(df3)
+}
+
+```
+
+
+#### 4.2 Analysis
+
+##### <span style="color:blue">Mailer</span>
+
+For a particular product in a particular store in a particular week, **we are 95% confident** that:
+
+* The percentage of **sales increases by 6% to 84%** if the product is shifted from **Not on Ad to Front Page Feature**
+* The percentage of **units increases by 8% to 46%** if the product is shifted from **Not on Ad to Interior Page Feature**
+* The percentage of **units increases by 33% to 103%** if the product is shifted from **Not on Ad to Front Page Feature**
+* The percentage of **visits increases by 4% to 22%** if the product is shifted from **Not on Ad to Interior Page Feature**
+* The percentage of **visits increases by 23% to 53%** if the product is shifted from **Not on Ad to Front Page Feature**
+* The percentage of **visits decreases by 0% to 15%** if the product is shifted from **Interior Page Feature to Not on Ad**
+* The percentage of **units decreases by 36% to 50%** if the product is shifted from **Front Page Feature to Not on Ad**
+* The percentage of **visits decreases by 14% to 36%** if the product is shifted from **Front Page Feature to Not on Ad**
+
+
+```{r}
+# running the 'calc_p_value_conf_int' function on mailer data
+mailer_analysis <- 
+  calc_p_value_conf_int(mailer_point_estimates) %>% 
+  mutate(avg_sales=mean(mailer_display_transactions$sum_sales),
+         avg_units=mean(mailer_display_transactions$sum_quantity),
+         avg_visits=mean(mailer_display_transactions$sum_visits))
+
+# calculating percentage increase in sales, units and visits instead of absolute
+for (i in 1:nrow(mailer_analysis))
+{
+  if(mailer_analysis$Variable[i] == "sales")
+  {
+    mailer_analysis$ci_lower[i] = mailer_analysis$ci_lower[i]/mailer_analysis$avg_sales[i] 
+  } else if (mailer_analysis$Variable[i] == "quantity")
+  {
+    mailer_analysis$ci_lower[i] = mailer_analysis$ci_lower[i]/mailer_analysis$avg_units[i]
+  } else if (mailer_analysis$Variable[i] == "visits")
+  {
+    mailer_analysis$ci_lower[i] = mailer_analysis$ci_lower[i]/mailer_analysis$avg_visits[i]
+  }
+}
+
+# output mailer yr1, display yr2, n, variable, p-value, confidence interval
+mailer_analysis %>%  
+  select(val_yr1,val_yr2,n_obs,Variable,p_value,ci_lower,ci_upper) %>% 
+  arrange(val_yr1) %>% 
+  mutate(ci_lower = ci_lower*100, ci_upper = 100*ci_upper)
+```
+
+
+##### <span style="color:blue">Display</span>
+
+For a particular product in a particular store in a particular week, **we are 95% confident** that:
+
+* The percentage of **sales increases  by 3% to 185%** if the product is shifted from **Not on Display to Mid-Aisle End Cap**
+* The percentage of **units decreases  by 5% to 61% ** if the product is shifted from **Not on Display to Front End Cap**
+* The percentage of **units increases  by 0% to 126%** if the product is shifted from **Not on Display to Mid-Aisle End Cap**
+* The percentage of **visits decreases by 2% to 50% ** if the product is shifted from **Not on Display to Front End Cap**
+* The percentage of **visits decreases by 1% to 29% ** if the product is shifted from **Not on Display to In-Shelf**
+* The percentage of **visits increases by 10% to 79%** if the product is shifted from **Front End Cap to Not on Display**
+* The percentage of **visits increases by 1% to 41% ** if the product is shifted from **Secondary Location Display to Not on Display**
+
+```{r}
+# running the 'calc_p_value_conf_int' function on display data
+display_analysis <- 
+  calc_p_value_conf_int(display_point_estimates) %>% 
+  mutate(avg_sales=mean(mailer_display_transactions$sum_sales), # avg sales
+         avg_units=mean(mailer_display_transactions$sum_quantity), # avg units
+         avg_visits=mean(mailer_display_transactions$sum_visits)) # avg visits
+
+# calculating percentage increase in sales, units and visits instead of absolute
+for (i in 1:nrow(display_analysis))
+{
+  if(display_analysis$Variable[i] == "sales")
+  {
+    display_analysis$ci_lower[i] = display_analysis$ci_lower[i]/display_analysis$avg_sales[i] 
+  } else if (display_analysis$Variable[i] == "quantity")
+  {
+    display_analysis$ci_lower[i] = display_analysis$ci_lower[i]/display_analysis$avg_units[i]
+  } else if (display_analysis$Variable[i] == "visits")
+  {
+    display_analysis$ci_lower[i] = display_analysis$ci_lower[i]/display_analysis$avg_visits[i]
+  }
+}
+
+# output display yr1, display yr2, n, variable, p-value, confidence interval
+display_analysis %>%  
+  select(val_yr1,val_yr2,n_obs,Variable,p_value,ci_lower,ci_upper) %>% 
+  arrange(val_yr1) %>% 
+  mutate(ci_lower = ci_lower*100, ci_upper = 100*ci_upper)
+```
+
+***
+
+### 5 Summary
+
+####   <span style="color:blue">Problem Statement</span>
+Quantify the **impact on sales, units and visits** due to:
+
+(a) In-store **display** of a product
+(b) Whether the product was featured in the weekly **mailer** or not
+
+####   <span style="color:blue">Rationale</span>
+
+##### Data Used
+
+* **causal_data** -  This table signifies whether a given product was featured in the weekly mailer or was part of an in-store display.
+* **transaction_data** - This table contains all products purchased by households within this study. Each line found in this table is essentially the same line that would be found on a store receipt.
+* **product** - This table contains information on each product sold such as type of product, national or private label and a brand identifier.
+
+##### Methodology
+
+1. Calculate sales, units and visits for each store, week and product combination
+2. Divide data into Year1 and Year2
+3. Calculate average difference in sales, units and visits between Year1 and Year2 for each combination of display and mailer
+4. Keep only those display and mailer combinations which go from no mailer/no display in Yr1 to some mailer/some display in Yr2 or vice versa
+5. Conduct a paired t-test on the average difference for each combination
+6. Calculate p-value and confidence intervals
+7. Keep combinations with p-value < 5%
+
+####   <span style="color:blue">Insights</span>
+
+* The percentage of **sales, units and visits increase** if a product is shifted from **Not on Ad to Interior/Front Page Feature**
+* The percentage of **sales, units and visits increase** if a product is shifted from **Not on Display to Mid-Aisle Cap**. Surprisingly, we see a **decrease** if a product is shifted **from Not on Display to Front-End Cap**.
+
+*For exact values please refer to the tab 4.2*
+
+
+####   <span style="color:blue">Implications</span>
+
+The **retailer** can perform the following steps to **increase their sales, units and visits** for a particular product:
+
+* Put products on Interior or Front-Page Feature of the mailer
+* Put products on the Mid-Aisle Cap display
+
+####   <span style="color:blue">Limitations</span>
+
+The data consists of only 2500 households. For a more in-depth analysis, we will need to capture more households.
