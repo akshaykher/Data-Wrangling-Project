@@ -1,8 +1,8 @@
 # Retail-Analysis-Impact-of-Mailer-and-In-Store-Display
 
-Project Link: http://rpubs.com/akshaykher/retailer_mailer_display_analysis
+**Project Link**: http://rpubs.com/akshaykher/retailer_mailer_display_analysis
 
-Data Link:
+**Data Link**:
 
 * product table link - https://www.dropbox.com/s/2hq56ye5tjp8ryb/product.csv?dl=0
 * transaction_data link - https://www.dropbox.com/s/kqn5ontiyp3hvo0/transaction_data.csv?dl=0
