@@ -22,14 +22,14 @@ The analysis will make use of transactional data and the causal data for a major
 #### 1.3 Methodology
 Calculate the effect of in-store display and weekly mailer information on the sales, units and visits between Year 1 and Year 2 for the same:
 
-(a) Product
-(b) Store
-(c) Week ID
+1. Product
+2. Store
+3. Week ID
 
 Once we have the information for distinct (a), (b) and (c) we can make generalized statements for all 68,377 products in 115 stores for the last 102 weeks. Using these results which are obtained from the sampled data, we will make use of central limit theorem and confidence intervals to make inferences about the population.
 
 #### 1.4 Practical Usage
 This project aims to quantify the effect of strategies discussed in 1.1 and help:
 
-(a) Retailers optimize their in-store display
-(b) Consumers optimize their spending on the right products with minimum influence
+1. Retailers optimize their in-store display
+2. Consumers optimize their spending on the right products with minimum influence
