@@ -3,9 +3,10 @@
 Project Link: http://rpubs.com/akshaykher/retailer_mailer_display_analysis
 
 Data Link:
-product table link - https://www.dropbox.com/s/2hq56ye5tjp8ryb/product.csv?dl=0
-transaction_data link - https://www.dropbox.com/s/kqn5ontiyp3hvo0/transaction_data.csv?dl=0
-causal_data link - https://www.dropbox.com/s/n6x0ugtdna6av3t/causal_data.csv?dl=0
+
+* product table link - https://www.dropbox.com/s/2hq56ye5tjp8ryb/product.csv?dl=0
+* transaction_data link - https://www.dropbox.com/s/kqn5ontiyp3hvo0/transaction_data.csv?dl=0
+* causal_data link - https://www.dropbox.com/s/n6x0ugtdna6av3t/causal_data.csv?dl=0
 
 1.1 Research Question
 This project aims to explore the effect on sales, units and visits due to:
