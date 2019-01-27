@@ -14,6 +14,7 @@ The analysis will make use of transactional data and the causal data for a major
 
 1.3 Methodology
 Calculate the effect of in-store display and weekly mailer information on the sales, units and visits between Year 1 and Year 2 for the same:
+
 (a) Product
 (b) Store
 (c) Week ID
