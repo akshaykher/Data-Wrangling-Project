@@ -4,7 +4,9 @@ Project Link: http://rpubs.com/akshaykher/retailer_mailer_display_analysis
 
 1.1 Research Question
 This project aims to explore the effect on sales, units and visits due to:
+
 (a) In-store display of a product
+
 (b) Whether the product was featured in the weekly mailer or not
 
 For years, retailers have been investing in these two strategies to boost their revenues. At the same time, for years, consumers have been influenced by these two strategies without even knowing it. This project aims to quantify this effect and help both consumers and retailers.
